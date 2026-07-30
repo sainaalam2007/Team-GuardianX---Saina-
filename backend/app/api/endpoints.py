@@ -1,7 +1,7 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 from typing import List
 import json
-from app.models.schemas import SensorTelemetry, DigitalTwinState, Alert, SOSSnapshot, Hazard
+from app.models.schemas import SensorTelemetry, DigitalTwinState, Alert, SOSSnapshot, Hazard, VoiceCommandRequest
 from app.services.store import store
 from app.services.rules import process_telemetry
 
@@ -94,3 +94,23 @@ async def report_hazard(hazard: Hazard):
     # Broadcast new hazard to dashboard clients
     await manager.broadcast(f'{{"type": "new_hazard", "data": {hazard.model_dump_json()}}}')
     return hazard
+
+@router.post("/voice")
+async def process_voice_command(req: VoiceCommandRequest):
+    twin = store.get_twin(req.rider_id)
+    if not twin:
+        raise HTTPException(status_code=404, detail="Twin not found")
+        
+    twin.last_voice_command = req.command
+    
+    cmd = req.command.lower()
+    if "ambulance" in cmd or "help" in cmd or "crash" in cmd:
+        print("\n📞 [TWILIO MOCK] ---------------------------------------")
+        print(f"📞 [TWILIO MOCK] LIVE MICROPHONE KEYWORDS DETECTED: '{req.command}'")
+        print(f"📞 [TWILIO MOCK] Dialing EMS (911) for Rider {req.rider_id}")
+        print(f"💬 [TWILIO MOCK] SMS sent to Emergency Contact: 'Rider {req.rider_id} requests immediate assistance.'")
+        print("📞 [TWILIO MOCK] ---------------------------------------\n")
+        
+    store.update_twin(req.rider_id, twin)
+    await manager.broadcast(twin.model_dump_json())
+    return {"status": "processed"}

@@ -17,6 +17,7 @@ class SensorTelemetry(BaseModel):
     ultrasonic_distance: float # cm (for blind spot)
     gps_location: Dict[str, float]       # {"lat": float, "lng": float}
     battery_level: float     # percentage
+    voice_command: Optional[str] = None  # STT transcription
 
 # 2. Digital Twin State
 class DigitalTwinState(BaseModel):
@@ -31,6 +32,7 @@ class DigitalTwinState(BaseModel):
     active_alerts: List[str]
     risk_score: float = 0.0
     ai_coach_message: str = "Stay alert. Ride safe."
+    last_voice_command: Optional[str] = None
 
 # 3. Alert / Event Model
 class Alert(BaseModel):
@@ -58,3 +60,8 @@ class Hazard(BaseModel):
     reported_by: str
     timestamp: datetime
     active: bool = True
+
+# 6. Voice Command Request
+class VoiceCommandRequest(BaseModel):
+    rider_id: str
+    command: str

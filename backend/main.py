@@ -8,7 +8,6 @@ app = FastAPI(
     description="Backend API for GuardianX Smart Helmet Platform",
     version="1.0.0"
 )
-
 # Configure CORS for Dashboard and Mobile App
 app.add_middleware(
     CORSMiddleware,

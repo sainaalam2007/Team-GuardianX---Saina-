@@ -26,6 +26,7 @@ interface TwinState {
   active_alerts: string[];
   risk_score: number;
   ai_coach_message: string;
+  last_voice_command?: string;
 }
 
 interface Hazard {
@@ -41,6 +42,7 @@ export default function Dashboard() {
   const [hazards, setHazards] = useState<Hazard[]>([]);
   const [connected, setConnected] = useState(false);
   const [username, setUsername] = useState<string>('');
+  const [voiceLanguage, setVoiceLanguage] = useState<'en' | 'es' | 'hi'>('en');
   const router = useRouter();
 
   const handleLogout = () => {
@@ -197,6 +199,42 @@ export default function Dashboard() {
                 }`}>
                   "{twin.ai_coach_message}"
                 </p>
+              </div>
+            </div>
+
+            {/* Live Helmet Audio Widget */}
+            <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-6 shadow-2xl relative overflow-hidden mt-6 flex-1">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-slate-300 tracking-wider uppercase flex items-center gap-3">
+                  Live Helmet Audio
+                  <div className="flex gap-1">
+                    <div className="w-1 h-3 bg-indigo-500 rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
+                    <div className="w-1 h-4 bg-indigo-500 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
+                    <div className="w-1 h-2 bg-indigo-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </h3>
+                <select 
+                  value={voiceLanguage}
+                  onChange={(e) => setVoiceLanguage(e.target.value as any)}
+                  className="bg-slate-800 text-xs text-slate-300 border border-slate-700 rounded-lg px-2 py-1 outline-none focus:border-indigo-500"
+                >
+                  <option value="en">EN</option>
+                  <option value="es">ES</option>
+                  <option value="hi">HI</option>
+                </select>
+              </div>
+              
+              <div className="bg-slate-950/50 rounded-xl p-4 border border-slate-800/80 shadow-inner min-h-[80px] flex items-center">
+                {twin.last_voice_command ? (
+                  <p className="text-sm text-slate-300 italic leading-relaxed">
+                    <span className="mr-2 text-indigo-400">🎙️</span>
+                    "{voiceLanguage === 'en' ? twin.last_voice_command : (twin.last_voice_command.includes('ambulance') ? (voiceLanguage === 'es' ? "¡Hola Guardian, llama a una ambulancia! ¡Me he estrellado!" : "हे गार्जियन, एम्बुलेंस बुलाओ! मेरा एक्सीडेंट हो गया है!") : (voiceLanguage === 'es' ? "Hola Guardian, navega al hospital más cercano." : "हे गार्जियन, निकटतम अस्पताल ले चलो।"))}"
+                  </p>
+                ) : (
+                  <p className="text-sm text-slate-600 italic">
+                    Listening for "Hey Guardian"...
+                  </p>
+                )}
               </div>
             </div>
 

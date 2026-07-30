@@ -38,6 +38,17 @@ def process_telemetry(telemetry: SensorTelemetry):
     
     active_alerts = []
     
+    # 1.5 Rule: Voice Assistant Intent Parsing & Twilio Mock
+    if hasattr(telemetry, 'voice_command') and telemetry.voice_command:
+        twin.last_voice_command = telemetry.voice_command
+        cmd = telemetry.voice_command.lower()
+        if "ambulance" in cmd or "help" in cmd or "crash" in cmd:
+            print("\n📞 [TWILIO MOCK] ---------------------------------------")
+            print(f"📞 [TWILIO MOCK] Emergency keywords detected: '{telemetry.voice_command}'")
+            print(f"📞 [TWILIO MOCK] Dialing EMS (911) for Rider {rider_id} at Lat: {telemetry.gps_location.get('lat')}")
+            print(f"💬 [TWILIO MOCK] SMS sent to Emergency Contact: 'Rider {rider_id} requires immediate assistance.'")
+            print("📞 [TWILIO MOCK] ---------------------------------------\n")
+
     # 2. Rule: Accident Detection (Sudden Deceleration / Impact)
     accel = telemetry.accelerometer
     accel_mag = (accel.get("x", 0)**2 + accel.get("y", 0)**2 + accel.get("z", 0)**2) ** 0.5
