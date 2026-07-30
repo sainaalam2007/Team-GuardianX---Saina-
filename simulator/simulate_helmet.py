@@ -3,15 +3,22 @@ import websockets
 import json
 import random
 import time
+import requests
+import uuid
 from datetime import datetime, timezone
 
 # Configuration
 RIDER_ID = "rider_123"
 HELMET_ID = "helmet_456"
 BACKEND_WS_URL = f"ws://localhost:8000/api/ws/ingest/{HELMET_ID}"
+BACKEND_API_URL = "http://localhost:8000/api"
 SEND_INTERVAL = 1.0  # seconds
 
-def generate_telemetry_payload(scenario="normal"):
+# Base location (San Francisco)
+BASE_LAT = 37.7749
+BASE_LNG = -122.4194
+
+def generate_telemetry_payload(scenario="normal", iteration=0):
     # Base telemetry for a normal ride
     telemetry = {
         "rider_id": RIDER_ID,
@@ -25,7 +32,10 @@ def generate_telemetry_payload(scenario="normal"):
         "alcohol_ppm": random.uniform(0, 50),
         "air_quality_index": random.uniform(20, 80),
         "ultrasonic_distance": random.uniform(200, 500), # safe distance
-        "gps_location": {"lat": 37.7749 + random.uniform(-0.01, 0.01), "lng": -122.4194 + random.uniform(-0.01, 0.01)},
+        "gps_location": {
+            "lat": BASE_LAT + (iteration * 0.0001) + random.uniform(-0.00005, 0.00005), 
+            "lng": BASE_LNG + (iteration * 0.0001) + random.uniform(-0.00005, 0.00005)
+        },
         "battery_level": 85.0
     }
 
@@ -61,10 +71,27 @@ async def stream_data():
                 scenario = "drunk"
             elif 40 <= iteration < 45:
                 scenario = "blind_spot"
-            elif iteration == 60:
                 scenario = "accident"
                 
-            payload = generate_telemetry_payload(scenario)
+            # Randomly create a hazard
+            if iteration == 35:
+                try:
+                    requests.post(f"{BACKEND_API_URL}/hazards", json={
+                        "hazard_id": str(uuid.uuid4()),
+                        "type": random.choice(["POTHOLE", "ICE", "ROAD_WORK"]),
+                        "location": {
+                            "lat": BASE_LAT + ((iteration + 5) * 0.0001), 
+                            "lng": BASE_LNG + ((iteration + 5) * 0.0001)
+                        },
+                        "reported_by": "community_user_7",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "active": True
+                    })
+                    print("Spawned a community hazard!")
+                except Exception as e:
+                    print(f"Failed to post hazard: {e}")
+                
+            payload = generate_telemetry_payload(scenario, iteration)
             await websocket.send(json.dumps(payload))
             print(f"Sent {scenario} telemetry at {payload['timestamp']}")
             
