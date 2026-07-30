@@ -107,6 +107,12 @@ export default function Dashboard() {
             <span className="text-sm font-medium tracking-wide">{connected ? 'SYSTEM ONLINE' : 'OFFLINE'}</span>
           </div>
           <button 
+            onClick={() => router.push('/pricing')}
+            className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 rounded-full text-white text-sm font-bold shadow-[0_0_15px_rgba(79,70,229,0.3)] transition-all hidden sm:block"
+          >
+            Upgrade Plan
+          </button>
+          <button 
             onClick={handleLogout}
             className="px-4 py-2 bg-slate-800/80 hover:bg-slate-700 border border-slate-700/50 rounded-full text-slate-300 text-sm font-medium transition-colors"
           >
