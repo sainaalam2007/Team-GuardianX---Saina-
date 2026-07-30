@@ -23,6 +23,7 @@ export default function Login() {
       if (isEmailValid && isPasswordValid) {
         // Success! Set mock token and redirect
         sessionStorage.setItem('auth_token', 'mock_secure_token_abc123');
+        sessionStorage.setItem('username', email.split('@')[0]);
         router.push('/');
       } else {
         // Fail

@@ -40,6 +40,7 @@ export default function Dashboard() {
   const [twin, setTwin] = useState<TwinState | null>(null);
   const [hazards, setHazards] = useState<Hazard[]>([]);
   const [connected, setConnected] = useState(false);
+  const [username, setUsername] = useState<string>('');
   const router = useRouter();
 
   const handleLogout = () => {
@@ -48,6 +49,8 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    setUsername(sessionStorage.getItem('username') || '');
+
     // Fetch initial hazards
     fetch('http://localhost:8000/api/hazards')
       .then(res => res.json())
@@ -95,7 +98,7 @@ export default function Dashboard() {
 
       <header className="mb-6 flex justify-between items-center bg-slate-900/50 backdrop-blur-md p-4 rounded-2xl border border-slate-800/50 shadow-lg">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent tracking-tight">GuardianX Fleet Command</h1>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent tracking-tight">GuardianX</h1>
           <p className="text-slate-400 text-sm mt-1">AI-Powered Risk Prediction & Telemetry</p>
         </div>
         <div className="flex items-center gap-4">
@@ -123,10 +126,10 @@ export default function Dashboard() {
               <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-blue-500/10" />
               <div className="flex items-center gap-4 mb-6">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-indigo-500/20">
-                  {twin.rider_id.substring(0, 2).toUpperCase()}
+                  {username ? username.substring(0, 2).toUpperCase() : twin.rider_id.substring(0, 2).toUpperCase()}
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-slate-100 tracking-tight">{twin.rider_id}</h2>
+                  <h2 className="text-xl font-bold text-slate-100 tracking-tight">{username || twin.rider_id}</h2>
                   <p className="text-slate-400 text-xs font-mono">{twin.helmet_id}</p>
                 </div>
               </div>
