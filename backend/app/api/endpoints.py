@@ -1,7 +1,7 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 from typing import List
 import json
-from app.models.schemas import SensorTelemetry, DigitalTwinState, Alert, SOSSnapshot
+from app.models.schemas import SensorTelemetry, DigitalTwinState, Alert, SOSSnapshot, Hazard
 from app.services.store import store
 from app.services.rules import process_telemetry
 
@@ -83,3 +83,14 @@ async def get_all_alerts():
 @router.get("/sos/{rider_id}", response_model=List[SOSSnapshot])
 async def get_sos_snapshots(rider_id: str):
     return store.get_sos(rider_id)
+
+@router.get("/hazards", response_model=List[Hazard])
+async def get_hazards():
+    return store.get_all_hazards()
+
+@router.post("/hazards", response_model=Hazard)
+async def report_hazard(hazard: Hazard):
+    store.add_hazard(hazard)
+    # Broadcast new hazard to dashboard clients
+    await manager.broadcast(f'{{"type": "new_hazard", "data": {hazard.model_dump_json()}}}')
+    return hazard

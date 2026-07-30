@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from app.models.schemas import SensorTelemetry, DigitalTwinState, Alert, SOSSnapshot
 from app.services.store import store
+from app.services.ai_engine import calculate_ai_risk_score, generate_ai_coach_message
 
 # Thresholds
 ACCIDENT_ACCEL_THRESHOLD = 5.0 # g-force roughly
@@ -26,7 +27,9 @@ def process_telemetry(telemetry: SensorTelemetry):
             health_status="optimal",
             fatigue_score=0.0,
             alcohol_detected=False,
-            active_alerts=[]
+            active_alerts=[],
+            risk_score=0.0,
+            ai_coach_message="Stay alert. Ride safe."
         )
     
     twin.last_updated = telemetry.timestamp
@@ -129,6 +132,10 @@ def process_telemetry(telemetry: SensorTelemetry):
     twin.active_alerts.extend(active_alerts)
     # Keep last 10 alerts in twin state for brevity
     twin.active_alerts = twin.active_alerts[-10:]
+    
+    # --- AI Integration ---
+    twin.risk_score = calculate_ai_risk_score(twin, telemetry)
+    twin.ai_coach_message = generate_ai_coach_message(twin, telemetry, twin.risk_score)
     
     store.update_twin(rider_id, twin)
     return twin

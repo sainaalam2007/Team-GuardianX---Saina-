@@ -29,6 +29,8 @@ class DigitalTwinState(BaseModel):
     fatigue_score: float     # 0.0 to 1.0 (calculated over time)
     alcohol_detected: bool
     active_alerts: List[str]
+    risk_score: float = 0.0
+    ai_coach_message: str = "Stay alert. Ride safe."
 
 # 3. Alert / Event Model
 class Alert(BaseModel):
@@ -47,3 +49,12 @@ class SOSSnapshot(BaseModel):
     timestamp: datetime
     trigger_reason: str      # e.g., "impact_detected"
     vitals_snapshot: Dict[str, float]
+
+# 5. Community Hazard
+class Hazard(BaseModel):
+    hazard_id: str
+    type: str                # e.g., "POTHOLE", "ICE", "ACCIDENT"
+    location: Dict[str, float]
+    reported_by: str
+    timestamp: datetime
+    active: bool = True
