@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 
 // Dynamically import Map to prevent SSR issues with Leaflet
 const Map = dynamic(() => import('./Map'), { 
@@ -39,6 +40,12 @@ export default function Dashboard() {
   const [twin, setTwin] = useState<TwinState | null>(null);
   const [hazards, setHazards] = useState<Hazard[]>([]);
   const [connected, setConnected] = useState(false);
+  const router = useRouter();
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('auth_token');
+    router.push('/login');
+  };
 
   useEffect(() => {
     // Fetch initial hazards
@@ -91,9 +98,17 @@ export default function Dashboard() {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent tracking-tight">GuardianX Fleet Command</h1>
           <p className="text-slate-400 text-sm mt-1">AI-Powered Risk Prediction & Telemetry</p>
         </div>
-        <div className={`flex items-center gap-2 px-4 py-2 rounded-full border shadow-[0_0_15px_rgba(0,0,0,0.2)] backdrop-blur-md ${connected ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-rose-500/30 bg-rose-500/10 text-rose-400'}`}>
-          <div className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-rose-400'}`}></div>
-          <span className="text-sm font-medium tracking-wide">{connected ? 'SYSTEM ONLINE' : 'OFFLINE'}</span>
+        <div className="flex items-center gap-4">
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-full border shadow-[0_0_15px_rgba(0,0,0,0.2)] backdrop-blur-md ${connected ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-rose-500/30 bg-rose-500/10 text-rose-400'}`}>
+            <div className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-rose-400'}`}></div>
+            <span className="text-sm font-medium tracking-wide">{connected ? 'SYSTEM ONLINE' : 'OFFLINE'}</span>
+          </div>
+          <button 
+            onClick={handleLogout}
+            className="px-4 py-2 bg-slate-800/80 hover:bg-slate-700 border border-slate-700/50 rounded-full text-slate-300 text-sm font-medium transition-colors"
+          >
+            Logout
+          </button>
         </div>
       </header>
 
