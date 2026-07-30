@@ -61,7 +61,27 @@ class Hazard(BaseModel):
     timestamp: datetime
     active: bool = True
 
-# 6. Voice Command Request
 class VoiceCommandRequest(BaseModel):
     rider_id: str
     command: str
+
+# 7. Authentication & User
+class EmergencyContacts(BaseModel):
+    parents_phone: str
+    police_phone: str
+    ambulance_phone: str
+    other_phone: Optional[str] = None
+
+class UserRegister(BaseModel):
+    email: str
+    password: str
+    name: str
+    emergency_contacts: EmergencyContacts
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+class User(UserRegister):
+    id: str
+

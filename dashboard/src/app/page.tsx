@@ -13,7 +13,7 @@ export default function Home() {
     // Check for our mock auth token
     const token = sessionStorage.getItem('auth_token');
     
-    if (token === 'mock_secure_token_abc123') {
+    if (token) {
       setIsAuthenticated(true);
     } else {
       router.push('/login');

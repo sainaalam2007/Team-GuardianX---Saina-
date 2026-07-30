@@ -1,7 +1,13 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 from typing import List
 import json
-from app.models.schemas import SensorTelemetry, DigitalTwinState, Alert, SOSSnapshot, Hazard, VoiceCommandRequest
+from app.models.schemas import SensorTelemetry, DigitalTwinState, Alert, SOSSnapshot, Hazard, VoiceCommandRequest, UserRegister, UserLogin, User
+import uuid
+import hashlib
+
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
 from app.services.store import store
 from app.services.rules import process_telemetry
 
@@ -114,3 +120,27 @@ async def process_voice_command(req: VoiceCommandRequest):
     store.update_twin(req.rider_id, twin)
     await manager.broadcast(twin.model_dump_json())
     return {"status": "processed"}
+
+@router.post("/auth/signup", response_model=User)
+async def signup(user_req: UserRegister):
+    existing = store.get_user_by_email(user_req.email)
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    new_user = User(
+        id=str(uuid.uuid4()),
+        email=user_req.email,
+        password=hash_password(user_req.password),
+        name=user_req.name,
+        emergency_contacts=user_req.emergency_contacts
+    )
+    store.add_user(new_user)
+    return new_user
+
+@router.post("/auth/login")
+async def login(login_req: UserLogin):
+    user = store.get_user_by_email(login_req.email)
+    if not user or hash_password(login_req.password) != user.password:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    return {"token": f"mock_jwt_for_{user.id}", "user_id": user.id, "name": user.name}

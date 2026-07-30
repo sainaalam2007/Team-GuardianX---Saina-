@@ -1,5 +1,5 @@
-from typing import Dict, List
-from app.models.schemas import DigitalTwinState, Alert, SOSSnapshot, Hazard
+from typing import Dict, List, Optional
+from app.models.schemas import DigitalTwinState, Alert, SOSSnapshot, Hazard, User
 
 class InMemoryStore:
     def __init__(self):
@@ -11,6 +11,20 @@ class InMemoryStore:
         self.sos_snapshots: Dict[str, List[SOSSnapshot]] = {}
         # Global Hazards List
         self.hazards: List[Hazard] = []
+        # Maps user_id -> User
+        self.users: Dict[str, User] = {}
+
+    def add_user(self, user: User):
+        self.users[user.id] = user
+
+    def get_user(self, user_id: str) -> Optional[User]:
+        return self.users.get(user_id)
+
+    def get_user_by_email(self, email: str) -> Optional[User]:
+        for u in self.users.values():
+            if u.email == email:
+                return u
+        return None
 
     def update_twin(self, rider_id: str, state: DigitalTwinState):
         self.digital_twins[rider_id] = state

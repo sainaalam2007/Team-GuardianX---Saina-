@@ -35,8 +35,8 @@ def listen_loop():
         with sr.Microphone() as source:
             print("Adjusting for ambient noise... please wait 2 seconds.")
             r.adjust_for_ambient_noise(source, duration=2)
-            # Increase pause threshold so it doesn't cut off speech too early
-            r.pause_threshold = 1.0 
+            # Decrease pause threshold so it is extremely snappy and responsive
+            r.pause_threshold = 0.3 
             
             print("\n=========================================")
             print("Microphone initialized. Listening for commands...")

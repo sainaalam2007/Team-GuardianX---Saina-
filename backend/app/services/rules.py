@@ -42,12 +42,30 @@ def process_telemetry(telemetry: SensorTelemetry):
     if hasattr(telemetry, 'voice_command') and telemetry.voice_command:
         twin.last_voice_command = telemetry.voice_command
         cmd = telemetry.voice_command.lower()
+        
+        # Get emergency contacts if user exists
+        user = store.get_user(rider_id)
+        contact_str = "Family & Emergency Contacts"
+        if user and user.emergency_contacts:
+            contacts = [
+                user.emergency_contacts.parents_phone,
+                user.emergency_contacts.police_phone,
+                user.emergency_contacts.ambulance_phone,
+                user.emergency_contacts.other_phone
+            ]
+            contacts = [c for c in contacts if c]
+            if contacts:
+                contact_str = ", ".join(contacts)
+                
+        print("\n📞 [TWILIO MOCK] ---------------------------------------")
+        print(f"📞 [TWILIO MOCK] Voice command detected: '{telemetry.voice_command}'")
+        
         if "ambulance" in cmd or "help" in cmd or "crash" in cmd:
-            print("\n📞 [TWILIO MOCK] ---------------------------------------")
-            print(f"📞 [TWILIO MOCK] Emergency keywords detected: '{telemetry.voice_command}'")
             print(f"📞 [TWILIO MOCK] Dialing EMS (911) for Rider {rider_id} at Lat: {telemetry.gps_location.get('lat')}")
-            print(f"💬 [TWILIO MOCK] SMS sent to Emergency Contact: 'Rider {rider_id} requires immediate assistance.'")
-            print("📞 [TWILIO MOCK] ---------------------------------------\n")
+            print(f"💬 [TWILIO MOCK] SMS sent to [{contact_str}]: 'Rider {rider_id} requires immediate assistance!'")
+        else:
+            print(f"💬 [TWILIO MOCK] SMS sent to [{contact_str}]: 'Rider {rider_id} commanded AI: \"{telemetry.voice_command}\"'")
+        print("📞 [TWILIO MOCK] ---------------------------------------\n")
 
     # 2. Rule: Accident Detection (Sudden Deceleration / Impact)
     accel = telemetry.accelerometer
