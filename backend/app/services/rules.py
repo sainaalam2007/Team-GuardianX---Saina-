@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from app.models.schemas import SensorTelemetry, DigitalTwinState, Alert, SOSSnapshot
 from app.services.store import store
+from app.services.ai_engine import calculate_ai_risk_score, generate_ai_coach_message
 
 # Thresholds
 ACCIDENT_ACCEL_THRESHOLD = 5.0 # g-force roughly
@@ -26,7 +27,9 @@ def process_telemetry(telemetry: SensorTelemetry):
             health_status="optimal",
             fatigue_score=0.0,
             alcohol_detected=False,
-            active_alerts=[]
+            active_alerts=[],
+            risk_score=0.0,
+            ai_coach_message="Stay alert. Ride safe."
         )
     
     twin.last_updated = telemetry.timestamp
@@ -35,6 +38,35 @@ def process_telemetry(telemetry: SensorTelemetry):
     
     active_alerts = []
     
+    # 1.5 Rule: Voice Assistant Intent Parsing & Twilio Mock
+    if hasattr(telemetry, 'voice_command') and telemetry.voice_command:
+        twin.last_voice_command = telemetry.voice_command
+        cmd = telemetry.voice_command.lower()
+        
+        # Get emergency contacts if user exists
+        user = store.get_user(rider_id)
+        contact_str = "Family & Emergency Contacts"
+        if user and user.emergency_contacts:
+            contacts = [
+                user.emergency_contacts.parents_phone,
+                user.emergency_contacts.police_phone,
+                user.emergency_contacts.ambulance_phone,
+                user.emergency_contacts.other_phone
+            ]
+            contacts = [c for c in contacts if c]
+            if contacts:
+                contact_str = ", ".join(contacts)
+                
+        print("\n📞 [TWILIO MOCK] ---------------------------------------")
+        print(f"📞 [TWILIO MOCK] Voice command detected: '{telemetry.voice_command}'")
+        
+        if "ambulance" in cmd or "help" in cmd or "crash" in cmd:
+            print(f"📞 [TWILIO MOCK] Dialing EMS (911) for Rider {rider_id} at Lat: {telemetry.gps_location.get('lat')}")
+            print(f"💬 [TWILIO MOCK] SMS sent to [{contact_str}]: 'Rider {rider_id} requires immediate assistance!'")
+        else:
+            print(f"💬 [TWILIO MOCK] SMS sent to [{contact_str}]: 'Rider {rider_id} commanded AI: \"{telemetry.voice_command}\"'")
+        print("📞 [TWILIO MOCK] ---------------------------------------\n")
+
     # 2. Rule: Accident Detection (Sudden Deceleration / Impact)
     accel = telemetry.accelerometer
     accel_mag = (accel.get("x", 0)**2 + accel.get("y", 0)**2 + accel.get("z", 0)**2) ** 0.5
@@ -129,6 +161,10 @@ def process_telemetry(telemetry: SensorTelemetry):
     twin.active_alerts.extend(active_alerts)
     # Keep last 10 alerts in twin state for brevity
     twin.active_alerts = twin.active_alerts[-10:]
+    
+    # --- AI Integration ---
+    twin.risk_score = calculate_ai_risk_score(twin, telemetry)
+    twin.ai_coach_message = generate_ai_coach_message(twin, telemetry, twin.risk_score)
     
     store.update_twin(rider_id, twin)
     return twin

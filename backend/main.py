@@ -8,7 +8,6 @@ app = FastAPI(
     description="Backend API for GuardianX Smart Helmet Platform",
     version="1.0.0"
 )
-
 # Configure CORS for Dashboard and Mobile App
 app.add_middleware(
     CORSMiddleware,
@@ -25,4 +24,4 @@ def read_root():
     return {"message": "Welcome to GuardianX API"}
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

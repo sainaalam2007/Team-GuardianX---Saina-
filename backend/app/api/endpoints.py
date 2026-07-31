@@ -1,7 +1,13 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 from typing import List
 import json
-from app.models.schemas import SensorTelemetry, DigitalTwinState, Alert, SOSSnapshot
+from app.models.schemas import SensorTelemetry, DigitalTwinState, Alert, SOSSnapshot, Hazard, VoiceCommandRequest, UserRegister, UserLogin, User
+import uuid
+import hashlib
+
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
 from app.services.store import store
 from app.services.rules import process_telemetry
 
@@ -83,3 +89,58 @@ async def get_all_alerts():
 @router.get("/sos/{rider_id}", response_model=List[SOSSnapshot])
 async def get_sos_snapshots(rider_id: str):
     return store.get_sos(rider_id)
+
+@router.get("/hazards", response_model=List[Hazard])
+async def get_hazards():
+    return store.get_all_hazards()
+
+@router.post("/hazards", response_model=Hazard)
+async def report_hazard(hazard: Hazard):
+    store.add_hazard(hazard)
+    # Broadcast new hazard to dashboard clients
+    await manager.broadcast(f'{{"type": "new_hazard", "data": {hazard.model_dump_json()}}}')
+    return hazard
+
+@router.post("/voice")
+async def process_voice_command(req: VoiceCommandRequest):
+    twin = store.get_twin(req.rider_id)
+    if not twin:
+        raise HTTPException(status_code=404, detail="Twin not found")
+        
+    twin.last_voice_command = req.command
+    
+    cmd = req.command.lower()
+    if "ambulance" in cmd or "help" in cmd or "crash" in cmd:
+        print("\n📞 [TWILIO MOCK] ---------------------------------------")
+        print(f"📞 [TWILIO MOCK] LIVE MICROPHONE KEYWORDS DETECTED: '{req.command}'")
+        print(f"📞 [TWILIO MOCK] Dialing EMS (911) for Rider {req.rider_id}")
+        print(f"💬 [TWILIO MOCK] SMS sent to Emergency Contact: 'Rider {req.rider_id} requests immediate assistance.'")
+        print("📞 [TWILIO MOCK] ---------------------------------------\n")
+        
+    store.update_twin(req.rider_id, twin)
+    await manager.broadcast(twin.model_dump_json())
+    return {"status": "processed"}
+
+@router.post("/auth/signup", response_model=User)
+async def signup(user_req: UserRegister):
+    existing = store.get_user_by_email(user_req.email)
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    new_user = User(
+        id=str(uuid.uuid4()),
+        email=user_req.email,
+        password=hash_password(user_req.password),
+        name=user_req.name,
+        emergency_contacts=user_req.emergency_contacts
+    )
+    store.add_user(new_user)
+    return new_user
+
+@router.post("/auth/login")
+async def login(login_req: UserLogin):
+    user = store.get_user_by_email(login_req.email)
+    if not user or hash_password(login_req.password) != user.password:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    return {"token": f"mock_jwt_for_{user.id}", "user_id": user.id, "name": user.name}

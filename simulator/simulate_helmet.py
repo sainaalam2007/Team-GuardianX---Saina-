@@ -3,15 +3,87 @@ import websockets
 import json
 import random
 import time
+import requests
+import uuid
 from datetime import datetime, timezone
+import speech_recognition as sr
+import pyttsx3
+import threading
+
+# Voice Command State
+current_voice_command = None
+voice_lock = threading.Lock()
+
+def speak_async(text):
+    def run_tts():
+        try:
+            import pyttsx3
+            engine = pyttsx3.init()
+            engine.setProperty('rate', 160) # slightly faster rate
+            engine.say(text)
+            engine.runAndWait()
+        except Exception as e:
+            print(f"TTS Error: {e}")
+            
+    threading.Thread(target=run_tts, daemon=True).start()
+
+def listen_loop():
+    global current_voice_command
+    r = sr.Recognizer()
+    
+    try:
+        with sr.Microphone() as source:
+            print("Adjusting for ambient noise... please wait 2 seconds.")
+            r.adjust_for_ambient_noise(source, duration=2)
+            # Decrease pause threshold so it is extremely snappy and responsive
+            r.pause_threshold = 0.3 
+            
+            print("\n=========================================")
+            print("Microphone initialized. Listening for commands...")
+            print("Say 'help', 'ambulance', or 'crash' to test alerts.")
+            print("=========================================\n")
+            
+            while True:
+                try:
+                    # Removed phrase_time_limit so users can finish their sentences
+                    audio = r.listen(source, timeout=None)
+                    print("[Mic] Processing audio...")
+                    text = r.recognize_google(audio)
+                    print(f"[Mic] Heard: '{text}'")
+                    
+                    with voice_lock:
+                        current_voice_command = text
+                    
+                    speak_async("Command received.")
+                    
+                except sr.UnknownValueError:
+                    pass
+                except sr.RequestError as e:
+                    print(f"[Mic] Request error: {e}")
+                except Exception as e:
+                    pass
+    except Exception as e:
+        print(f"Could not initialize microphone: {e}")
 
 # Configuration
 RIDER_ID = "rider_123"
 HELMET_ID = "helmet_456"
 BACKEND_WS_URL = f"ws://localhost:8000/api/ws/ingest/{HELMET_ID}"
+BACKEND_API_URL = "http://localhost:8000/api"
 SEND_INTERVAL = 1.0  # seconds
 
-def generate_telemetry_payload(scenario="normal"):
+# Base location (San Francisco)
+BASE_LAT = 37.7749
+BASE_LNG = -122.4194
+
+def generate_telemetry_payload(scenario="normal", iteration=0):
+    global current_voice_command
+    cmd_to_send = None
+    with voice_lock:
+        if current_voice_command:
+            cmd_to_send = current_voice_command
+            current_voice_command = None
+
     # Base telemetry for a normal ride
     telemetry = {
         "rider_id": RIDER_ID,
@@ -25,8 +97,12 @@ def generate_telemetry_payload(scenario="normal"):
         "alcohol_ppm": random.uniform(0, 50),
         "air_quality_index": random.uniform(20, 80),
         "ultrasonic_distance": random.uniform(200, 500), # safe distance
-        "gps_location": {"lat": 37.7749 + random.uniform(-0.01, 0.01), "lng": -122.4194 + random.uniform(-0.01, 0.01)},
-        "battery_level": 85.0
+        "gps_location": {
+            "lat": BASE_LAT + (iteration * 0.0001) + random.uniform(-0.00005, 0.00005), 
+            "lng": BASE_LNG + (iteration * 0.0001) + random.uniform(-0.00005, 0.00005)
+        },
+        "battery_level": 85.0,
+        "voice_command": cmd_to_send
     }
 
     # Override values based on scenario
@@ -35,6 +111,9 @@ def generate_telemetry_payload(scenario="normal"):
         telemetry["speed"] = 0
         telemetry["accelerometer"]["x"] = random.uniform(6.0, 10.0) # > 5.0 threshold
         telemetry["heart_rate"] = random.uniform(120, 150)
+    elif scenario == "voice_nav":
+        # Do nothing to voice command, just let the iteration pass
+        pass
     elif scenario == "drowsiness":
         # Low heart rate, low variability
         telemetry["heart_rate"] = random.uniform(40, 48) # < 50 threshold
@@ -48,6 +127,10 @@ def generate_telemetry_payload(scenario="normal"):
     return telemetry
 
 async def stream_data():
+    # Start the listening thread
+    listener_thread = threading.Thread(target=listen_loop, daemon=True)
+    listener_thread.start()
+    
     async with websockets.connect(BACKEND_WS_URL) as websocket:
         print(f"Connected to {BACKEND_WS_URL}")
         
@@ -59,12 +142,30 @@ async def stream_data():
                 scenario = "drowsiness"
             elif 25 <= iteration < 30:
                 scenario = "drunk"
+            elif 38 == iteration:
+                scenario = "voice_nav"
             elif 40 <= iteration < 45:
-                scenario = "blind_spot"
-            elif iteration == 60:
                 scenario = "accident"
                 
-            payload = generate_telemetry_payload(scenario)
+            # Randomly create a hazard
+            if iteration == 35:
+                try:
+                    requests.post(f"{BACKEND_API_URL}/hazards", json={
+                        "hazard_id": str(uuid.uuid4()),
+                        "type": random.choice(["POTHOLE", "ICE", "ROAD_WORK"]),
+                        "location": {
+                            "lat": BASE_LAT + ((iteration + 5) * 0.0001), 
+                            "lng": BASE_LNG + ((iteration + 5) * 0.0001)
+                        },
+                        "reported_by": "community_user_7",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "active": True
+                    })
+                    print("Spawned a community hazard!")
+                except Exception as e:
+                    print(f"Failed to post hazard: {e}")
+                
+            payload = generate_telemetry_payload(scenario, iteration)
             await websocket.send(json.dumps(payload))
             print(f"Sent {scenario} telemetry at {payload['timestamp']}")
             
